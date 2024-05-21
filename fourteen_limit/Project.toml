@@ -1,0 +1,14 @@
+name = "fourteen_limit"
+uuid = "ef952ef5-26d5-433c-922a-5ca4f2b3124f"
+authors = ["HaleyRoss <haley.a.ross@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
+PowerFlows = "94fada2c-fd9a-4e89-8d82-81405f5cb4f6"
+PowerSimulationsDynamics = "398b2ede-47ed-4edc-b52e-69e4a48b4336"
+PowerSystems = "bcd98974-b02a-5e2f-9ee0-a103f5c450dd"
+Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"

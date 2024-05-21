@@ -72,31 +72,31 @@ end
 ####### Setup Simulation ########
 
 # Define filepath to saved system
-file_dir = "Yourpathnamehere/14BusNew" 
+file_dir = cd(pwd, "..")
 
 # Define the system
-sys = System(joinpath(file_dir, "14bus.raw"), joinpath(file_dir, "dyn_data.dyr"))
+sys = System(joinpath(file_dir, "14BusNew/14bus.raw"), joinpath(file_dir, "14BusNew/dyn_data.dyr"))
 
 # Note GFM = grid forming inverter, GFL = grid following inverter
 # Define case to be tested: choose from: 1 = GFM Only, 2= GFL Only, 3 = GFM Bus 01 GFL Move, or 4 = GFM Move GFL Bus 03
-testcase = 4
+testcase = 1
 
 # Define type of current limiting to be used # 1.0 instantaeous limiter, 2.0 magnitude limiter, 0.0 none
 # For GFM
 GFM_limtype = 1.0
 # For GFL
-GFL_limtype = 1.0
+GFL_limtype = 2.0
 
 # Define list of generators to test. Uncomment the gens you want to use so that only one list is active at a time. 
 #gens = ["generator-1-1", "generator-2-1", "generator-3-1", "generator-6-1", "generator-8-1"] # All gens included
 #gens = ["generator-2-1", "generator-3-1", "generator-6-1", "generator-8-1"] # Gen list for moving GFL (note GFL can't be on Bus 01 becuase it's slack and sets system frequency)
 #gens = ["generator-1-1", "generator-2-1", "generator-6-1", "generator-8-1"] # Gen list for moving GFM when GFL on bus 3
-gens = ["generator-6-1"] # Only test 1 gen (note if you use this, you might get an error on line 661, this is normal, and all tineseries plots should be displayed)
+gens = ["generator-2-1"] # Only test 1 gen (note if you use this, you might get an error on line 661, this is normal, and all tineseries plots should be displayed)
 
 # Define current limits to test, only one currentlim_values should be uncommented at a time.
 iter=-.01 # Set decrement amount 
-#currentlim_values = 1.4:iter:0.0 # Test range of limits decreasin by iter each time
-currentlim_values= [1.35] # Test a single limit value (iter not used)
+#currentlim_values = 0.9:iter:0.8 # Test range of limits decreasin by iter each time
+currentlim_values= [0.83] # Test a single limit value (iter not used)
 
 # Define loads to test, only one loads should be uncommented at a time.
 loads = ["load21"] # Test a single load (note if you use this, you might get an error on line 661, this is normal, and all tineseries plots should be displayed)
@@ -110,9 +110,6 @@ for gen in gens # Establish for loop to rotate generators
 for step in 0.1:0.1:0.11 # You can use this to try different load increases, but this is setup to only test 0.1 for now.
 for load in loads #Establish loop to rotate through which load has the disturbance applied
     for currentlim_value in currentlim_values # Establish loop for testing different current limits
-        
-        # Call the system 
-        sys = System(joinpath(file_dir, "14bus.raw"), joinpath(file_dir, "dyn_data.dyr"))
        
         # Transform the loads of the system set control P and Q setpoints using functions defined above
         for l in get_components(PSY.StandardLoad, sys)
@@ -195,6 +192,7 @@ for load in loads #Establish loop to rotate through which load has the disturban
                 therm_reactive_power = get_reactive_power(thermal_gen)
                 therm_rating = get_rating(thermal_gen)
                 therm_base = get_base_power(thermal_gen)
+                therm_ractive_power_lim = get_reactive_power_limits(thermal_gen)
                 GFMname = "GFM $(gen)"
             elseif testcase == 3 # Use this block to fix GFM at bus 1
                 thermal_gen = get_component(ThermalStandard, sys, "generator-1-1")
@@ -202,6 +200,7 @@ for load in loads #Establish loop to rotate through which load has the disturban
                 therm_reactive_power = get_reactive_power(thermal_gen)
                 therm_rating = get_rating(thermal_gen)
                 therm_base = get_base_power(thermal_gen)
+                therm_ractive_power_lim = get_reactive_power_limits(thermal_gen)
                 GFMname = "GFM generator-1-1"
             end
 
@@ -210,22 +209,33 @@ for load in loads #Establish loop to rotate through which load has the disturban
             remove_component!(sys, thermal_gen)
 
             # Define the GFM renewabe generators fixed source
-            PV_Gen = RenewableFix(
+            Batt_Gen = RenewableDispatch(
                 name = GFMname,
                 bus =  get_bus(thermal_gen), 
                 available = true,
-                prime_mover = PrimeMovers.PVe,
+                prime_mover_type = PrimeMovers.BA,
                 active_power = therm_active_power,
                 reactive_power = therm_reactive_power,
                 rating = therm_rating,
+                reactive_power_limits = therm_ractive_power_lim,
                 power_factor = .95,
                 base_power = therm_base,
+                operation_cost = RenewableGenerationCost(nothing),
             )
-            add_component!(sys, PV_Gen)
+            add_component!(sys, Batt_Gen)
+            
+            # Define Limiter Types
+            if GFM_limtype == 1.0
+                gfm_i_lim = InstantaneousOutputCurrentLimiter(Id_max = currentlim_value, Iq_max = currentlim_value) 
+            elseif GFM_limtype == 2.0   
+                gfm_i_lim = MagnitudeOutputCurrentLimiter(I_max = currentlim_value) 
+            elseif  GFM_limtype == 0.0
+                gfm_i_lim = nothing
+            end
 
             # Define the GFM renewable generator's inverter
             inverter = DynamicInverter(
-                name = get_name(PV_Gen),
+                name = get_name(Batt_Gen),
                 ω_ref = 1.0, # ω_ref,
                 converter = AverageConverter(rated_voltage = 69.0, rated_current = 100.0),
                 outer_control = OuterControl(
@@ -243,8 +253,6 @@ for load in loads #Establish loop to rotate through which load has the disturban
                     kffi = 0.0,     #Binary variable enabling the current feed-forward in output of current controllers (turing on fails to converge)
                     ωad = 50.0,     #Active damping low pass filter cut-off frequency
                     kad = 0.2,      # Active damping gain
-                    I_lim_type = GFM_limtype, #1.0 instantaeous limiter, 2.0 magnitude limiter, 0.0 none
-                    I_max = currentlim_value, # Current limit value
                 ),
                 dc_source = FixedDCSource(voltage = 600.0),
                 freq_estimator = KauraPLL(
@@ -253,8 +261,9 @@ for load in loads #Establish loop to rotate through which load has the disturban
                     ki_pll = 4.69,   #PLL integral gain
                 ),
                 filter = LCLFilter(lf = 0.08, rf = 0.003, cf = 0.074, lg = 0.2, rg = 0.01),
+                limiter = gfm_i_lim,
             )
-            add_component!(sys, inverter, PV_Gen)
+            add_component!(sys, inverter, Batt_Gen)
         end
 
     if testcase == 2 || testcase == 3 || testcase == 4
@@ -283,7 +292,7 @@ for load in loads #Establish loop to rotate through which load has the disturban
         GFL_Gen = GenericBattery(name= GFLname,
                     available = true, 
                     bus = get_bus(replace_gen), 
-                    prime_mover = PrimeMovers.BA, 
+                    prime_mover_type = PrimeMovers.BA, 
                     initial_energy = 1.0, 
                     state_of_charge_limits = (0.01, 1.0),
                     rating = replace_rating,
@@ -298,6 +307,15 @@ for load in loads #Establish loop to rotate through which load has the disturban
 
         add_component!(sys, GFL_Gen)
 
+        # Define Limiter Types
+        if GFL_limtype == 1.0
+            gfl_i_lim = InstantaneousOutputCurrentLimiter(Id_max = currentlim_value, Iq_max = currentlim_value) 
+        elseif GFL_limtype == 2.0   
+            gfl_i_lim = MagnitudeOutputCurrentLimiter(I_max = currentlim_value) 
+        elseif  GFL_limtype == 0.0
+            gfl_i_lim = nothing
+        end
+
         # Define the renewable generator's inverter
         GFL_inverter = DynamicInverter(
             name = get_name(GFL_Gen),
@@ -310,8 +328,6 @@ for load in loads #Establish loop to rotate through which load has the disturban
                 kpc = 0.736,     # Current controller proportional gain
                 kic = 0.111,    # Current controller integral gain
                 kffv = 1.0,     # Binary variable enabling the voltage feed-forward in output of current controllers
-                I_lim_type = GFL_limtype, # 1.0 instantaeous limiter, 2.0 magnitude limiter, 0.0 none
-                I_max = currentlim_value, # Current limit value
             ),
             dc_source = FixedDCSource(voltage = 600.0),
             freq_estimator = KauraPLL(
@@ -320,35 +336,36 @@ for load in loads #Establish loop to rotate through which load has the disturban
                 ki_pll = 8.2,   #PLL integral gain
             ),
             filter = LCLFilter(lf = 0.08, rf = 0.006, cf = 0.0074, lg = 0.09, rg = 0.01),
+            limiter = gfl_i_lim
         )
         add_component!(sys, GFL_inverter, GFL_Gen)
     end
 
-        df2 = run_powerflow(sys) # Run the powerflow
+        df2 = solve_powerflow(ACPowerFlow(), sys) # Run the powerflow
         bus_res2 = df2["bus_results"] # Define powerflow results
-        display(bus_res2) # Print powerlfow results (can be commented out)
+        #display(bus_res2) # Print powerlfow results (can be commented out)
        
         # Define the simulation
         sim = Simulation(
             ResidualModel, # Type of model used
             sys,         # Call the system
             file_dir,       # Set path for the simulation output
-            (0.0, 40.0), # Set time span to simulate (seconds)
+            (0.0, 20.0), # Set time span to simulate (seconds)
             LoadChange(5.0, get_component(StandardLoad, sys, load), :P_ref_power, step); # Define the pertubation (increase in real power on a load)
             console_level = Logging.Info,
             all_lines_dynamic = false, # Toggle transmission line dynamics (false is default)
         )
 
-        # Run Small Signal Analysis
+        # Run Small Signal Analysis pre-disturbance
         sm = small_signal_analysis(sim)
 
         # Show Participation Factor Summary
         pf_summary = summary_participation_factors(sm)
-        show(pf_summary, allrows=true)
+        #show(pf_summary, allrows=true)
 
         # Show Eigenvalue Summary
         eig_summary = summary_eigenvalues(sm)
-        show(eig_summary, allrows = true)
+        #show(eig_summary, allrows = true)
         show(last(eig_summary, 6))
         
         # Plot static network eigenvalue analysis results
@@ -368,6 +385,30 @@ for load in loads #Establish loop to rotate through which load has the disturban
 
         # Define the results
         results = read_results(sim)
+
+        # Run Small Signal Analysis post-disturbance
+        sm2 = small_signal_analysis(sim)
+
+        # Show Participation Factor Summary
+        pf_summary2 = summary_participation_factors(sm2)
+        #show(pf_summary2, allrows=true)
+
+        # Show Eigenvalue Summary
+        eig_summary2 = summary_eigenvalues(sm2)
+        #show(eig_summary2, allrows = true)
+        show(last(eig_summary2, 6))
+
+         # Plot static network eigenvalue analysis results
+         pa = plot(scatter(
+            x = real.(sm2.eigenvalues), 
+            y = imag.(sm2.eigenvalues), 
+            name = "Static Network",  mode="markers"),
+            Layout(
+            xaxis_title = "Real Axis",
+            yaxis_title = "Imaginary Axis",
+            title = "Static Network Post Disturbance, Current Lim: $(currentlim_value), Load: $(load), Step: $(step)",
+            ))
+        display(pa)
 
         # Catch build or converge errors
         try
