@@ -1,0 +1,42 @@
+┌ Info: 2024-05-21T16:07:20.961 [92731:1]: Pre-Initializing Simulation States
+└ @ PowerSimulationsDynamics /Users/hross2/Julia/PowerSimulationsDynamics.jl/src/base/simulation.jl:265
+┌ Info: 2024-05-21T16:07:20.961 [92731:1]: Unit System changed to UnitSystem.SYSTEM_BASE = 0
+└ @ PowerSystems /Users/hross2/Julia/PowerSystems.jl_CurrentLimiting/src/base.jl:491
+┌ Info: 2024-05-21T16:07:20.963 [92731:1]: PowerFlow solve converged, the results have been stored in the system
+└ @ PowerFlows /Users/hross2/.julia/packages/PowerFlows/6nw6s/src/nlsolve_ac_powerflow.jl:47
+┌ Info: 2024-05-21T16:07:20.963 [92731:1]: Unit System changed to UnitSystem.DEVICE_BASE = 1
+└ @ PowerSystems /Users/hross2/Julia/PowerSystems.jl_CurrentLimiting/src/base.jl:491
+┌ Info: 2024-05-21T16:07:20.966 [92731:1]: Residual from initial guess: max = 9.00682306514966e-11 at 23, total = 4.909637188310069e-10
+└ @ PowerSimulationsDynamics /Users/hross2/Julia/PowerSimulationsDynamics.jl/src/base/nlsolve_wrapper.jl:101
+┌ Info: 2024-05-21T16:07:20.966 [92731:1]: Initialization non-linear solve succeeded with a tolerance of 1.0e-9 using solver trust_region. Saving solution.
+└ @ PowerSimulationsDynamics /Users/hross2/Julia/PowerSimulationsDynamics.jl/src/base/nlsolve_wrapper.jl:68
+┌ Info: 2024-05-21T16:07:20.967 [92731:1]: Attaching Perturbations
+└ @ PowerSimulationsDynamics /Users/hross2/Julia/PowerSimulationsDynamics.jl/src/base/simulation.jl:296
+┌ Info: 2024-05-21T16:07:20.967 [92731:1]: Simulations status = BUILT
+└ @ PowerSimulationsDynamics /Users/hross2/Julia/PowerSimulationsDynamics.jl/src/base/simulation.jl:428
+┌ Info: 2024-05-21T16:07:20.967 [92731:1]: 
+│  ───────────────────────────────────────────────────────────────────────────────
+│                                                      Time          Allocations  
+│                                                ───────────────   ───────────────
+│                 Total measured:                    6.49ms            3.52MiB    
+│ 
+│  Section                               ncalls     time    %tot     alloc    %tot
+│  ───────────────────────────────────────────────────────────────────────────────
+│  Build Simulation                           1   6.49ms  100.0%   3.52MiB  100.0%
+│    Build Simulation Inputs                  1    711μs   11.0%    195KiB    5.4%
+│      Wrap Branches                          1   4.29μs    0.1%      240B    0.0%
+│      Wrap Dynamic Injectors                 1    341μs    5.3%   95.8KiB    2.7%
+│      Calculate MM, DAE_vector, Tota...      1   37.8μs    0.6%   11.0KiB    0.3%
+│      Wrap Static Injectors                  1   90.2μs    1.4%   28.5KiB    0.8%
+│    Pre-initialization                       1   2.34ms   36.0%    976KiB   27.1%
+│      Power Flow solution                    1   1.45ms   22.4%    545KiB   15.1%
+│      Initialize Static Injectors            1    875ns    0.0%     0.00B    0.0%
+│      Initialize Dynamic Injectors           1    650μs   10.0%    416KiB   11.5%
+│    Calculate Jacobian                       1   1.86ms   28.6%   1.88MiB   53.4%
+│    Make Model Function                      1   6.29μs    0.1%   1.72KiB    0.0%
+│    Initial Condition NLsolve refine...      1   1.08ms   16.7%    463KiB   12.8%
+│    Build Perturbations                      1    218μs    3.4%   14.6KiB    0.4%
+│    Make DiffEq Problem                      1    141μs    2.2%   12.3KiB    0.3%
+│  ───────────────────────────────────────────────────────────────────────────────
+│ 
+└ @ PowerSimulationsDynamics /Users/hross2/Julia/PowerSimulationsDynamics.jl/src/base/simulation.jl:453
