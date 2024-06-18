@@ -531,7 +531,7 @@ for load in loads #Establish loop to rotate through which load has the disturban
             gen_spd = push!(gen_spd, w_g)
             gen_name = push!(gen_name, n)
         end
-        for m in get_name.(get_components(RenewableFix, sys))
+        for m in get_name.(get_components(RenewableDispatch, sys))
             sim_time, w_g = get_state_series(results, (m, :ω_oc))
             gen_spd = push!(gen_spd, w_g)
             gen_name = push!(gen_name, m)
